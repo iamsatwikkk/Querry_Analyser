@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SQL Query Analyzer &amp; Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-title">SQL Query Analyzer &amp; Optimizer</span>
+      <span class="brand-subtitle">Compiler Design Based SQL Processing System</span>
+    </div>
+    <div class="header-status" id="header-status">
+      <span class="status-dot status-idle" id="status-dot"></span>
+      <span id="status-text">Idle</span>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <section class="editor-panel">
+    <div class="panel-heading">
+      <h2>SQL Editor</h2>
+      <select id="example-select" class="example-select">
+        <option value="">Example queries…</option>
+        <option value="SELECT name, salary FROM employee WHERE salary > 50000;">Simple WHERE comparison</option>
+        <option value="SELECT name, salary FROM employee WHERE salary >= 50000 AND department = 'IT';">AND condition</option>
+        <option value="SELECT name FROM employee WHERE department = 'IT' OR department = 'HR';">OR condition</option>
+        <option value="SELECT name, name, salary FROM employee WHERE department = 'IT';">Duplicate columns (optimizer demo)</option>
+        <option value="SELECT name FROM employee WHERE salary > 050000;">Non-canonical literal (optimizer demo)</option>
+        <option value="SELECT age FROM employee;">Semantic error demo</option>
+        <option value="SELECT FROM employee;">Syntax error demo</option>
+        <option value="SELECT name FROM employee WHERE salary @ 50000;">Lexical error demo</option>
+      </select>
+    </div>
+
+    <textarea id="query-input" class="query-input" spellcheck="false"
+      placeholder="Type a SQL query, e.g. SELECT name FROM employee WHERE salary > 50000;">SELECT name, salary FROM employee WHERE salary > 50000;</textarea>
+
+    <div class="editor-actions">
+      <button id="analyze-btn" class="btn btn-primary">Analyze Query</button>
+      <button id="clear-btn" class="btn btn-secondary">Clear</button>
+      <button id="copy-btn" class="btn btn-ghost">Copy Query</button>
+    </div>
+
+    <div class="schema-panel">
+      <h3>Schema</h3>
+      <div id="schema-tables" class="schema-tables">
+        <p class="empty-state">Loading schema…</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="output-panel">
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="tokens">Tokens</button>
+      <button class="tab-btn" data-tab="ast">Syntax / AST</button>
+      <button class="tab-btn" data-tab="semantic">Semantic</button>
+      <button class="tab-btn" data-tab="ir">IR</button>
+      <button class="tab-btn" data-tab="optimization">Optimization</button>
+      <button class="tab-btn" data-tab="plan">Execution Plan</button>
+      <button class="tab-btn" data-tab="result">Result</button>
+      <button class="tab-btn" data-tab="performance">Performance</button>
+    </nav>
+
+    <div class="tab-panels">
+
+      <section class="tab-panel active" id="panel-overview">
+        <div class="empty-state" id="overview-empty">Enter a query and click Analyze Query to begin.</div>
+        <div id="overview-content" class="hidden">
+          <div class="overview-status">
+            <span class="status-label">Query Status:</span>
+            <span id="overview-status-badge" class="badge"></span>
+          </div>
+          <table class="pipeline-table">
+            <tbody id="pipeline-stage-rows"></tbody>
+          </table>
+          <div id="overview-error" class="error-box hidden"></div>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="panel-tokens">
+        <div class="empty-state" id="tokens-empty">Token stream will appear here after analysis.</div>
+        <div class="table-scroll hidden" id="tokens-table-wrap">
+          <table class="data-table" id="tokens-table">
+            <thead>
+              <tr><th>Lexeme</th><th>Token Type</th><th>Line</th><th>Column</th></tr>
+            </thead>
+            <tbody id="tokens-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="panel-ast">
+        <div class="empty-state" id="ast-empty">Syntax and AST details will appear here after analysis.</div>
+        <div id="ast-content" class="hidden">
+          <div class="sub-heading">Syntax Status</div>
+          <div id="ast-syntax-status" class="status-line"></div>
+          <div class="sub-heading">Abstract Syntax Tree</div>
+          <pre class="code-block" id="ast-tree"></pre>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="panel-semantic">
+        <div class="empty-state" id="semantic-empty">Semantic validation results will appear here after analysis.</div>
+        <div id="semantic-content" class="hidden">
+          <div class="sub-heading">Table</div>
+          <div id="semantic-table-check" class="check-list"></div>
+          <div class="sub-heading">SELECT Columns</div>
+          <div id="semantic-select-checks" class="check-list"></div>
+          <div class="sub-heading">WHERE Columns</div>
+          <div id="semantic-where-checks" class="check-list"></div>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="panel-ir">
+        <div class="empty-state" id="ir-empty">Intermediate representation will appear here after analysis.</div>
+        <pre class="code-block hidden" id="ir-content"></pre>
+      </section>
+
+      <section class="tab-panel" id="panel-optimization">
+        <div class="empty-state" id="optimization-empty">Optimizer output will appear here after analysis.</div>
+        <div id="optimization-content" class="hidden"></div>
+      </section>
+
+      <section class="tab-panel" id="panel-plan">
+        <div class="empty-state" id="plan-empty">Execution plan will appear here after analysis.</div>
+        <div id="plan-content" class="hidden">
+          <pre class="code-block" id="plan-text"></pre>
+          <div class="flow-line" id="plan-flow"></div>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="panel-result">
+        <div class="empty-state" id="result-empty">Query results will appear here after analysis.</div>
+        <div class="table-scroll hidden" id="result-table-wrap">
+          <table class="data-table" id="result-table">
+            <thead><tr id="result-head"></tr></thead>
+            <tbody id="result-rows"></tbody>
+          </table>
+        </div>
+        <div class="empty-state hidden" id="result-no-rows">No matching rows in the sample dataset.</div>
+      </section>
+
+      <section class="tab-panel" id="panel-performance">
+        <div class="empty-state" id="performance-empty">Stage timings will appear here after analysis.</div>
+        <div id="performance-content" class="hidden">
+          <p class="performance-note" id="performance-note"></p>
+          <table class="data-table">
+            <thead><tr><th>Stage</th><th>Time (ms)</th></tr></thead>
+            <tbody id="performance-rows"></tbody>
+          </table>
+          <div class="total-time" id="performance-total"></div>
+        </div>
+      </section>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="app-footer">Made by Satwik</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
