@@ -1,2 +1,12 @@
+[project]
+name = "sql-query-analyzer-optimizer"
+version = "1.0.0"
+description = "SQL Query Analyzer and Optimizer using compiler design techniques"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi==0.143.0",
+    "uvicorn==0.54.0",
+]
+
 [tool.vercel.fastapi.static]
 cdn = false
